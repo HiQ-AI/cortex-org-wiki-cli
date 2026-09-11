@@ -62,6 +62,20 @@ test("native binary and unified installer in isolated projects", { skip: !binary
     assert.equal((await run(binary!, ["logout", "--json"], overrides)).code, 0);
     await assert.rejects(access(join(standalone, "cortex-org-wiki/credentials.json")));
   });
+  await t.test("native JSON boolean forms preserve argument and handler error output", async () => {
+    for (const [flags, json] of [
+      [["--json=true"], true], [["--json", "false"], false], [["--json", "--no-json"], false],
+    ] as [string[], boolean][]) {
+      for (const args of [["search", "topic"], ["doctor", "--org", "org-甲"]]) {
+        const handler = args[0] === "doctor";
+        const result = await run(binary!, [...args, ...flags], { CORTEX_ORG_WIKI_TOKEN: "" });
+        assert.equal(result.code, handler ? 2 : 3);
+        assert.equal(result.stdout, "");
+        if (json) assert.equal(JSON.parse(result.stderr).kind, handler ? "config" : "validation");
+        else assert.throws(() => JSON.parse(result.stderr));
+      }
+    }
+  });
   const windows = process.platform === "win32";
   const platform = `${process.platform === "darwin" ? "darwin" : windows ? "windows" : "linux"}-${process.arch === "arm64" ? "arm64" : "x64"}`;
   const commandName = `cortex-org-wiki${windows ? ".exe" : ""}`;

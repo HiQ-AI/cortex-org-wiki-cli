@@ -18,7 +18,10 @@ test("standalone CLI, host identity and clean npm installation", { timeout: 120_
   const credentials = join(config, "cortex-org-wiki", "credentials.json");
   await mkdir(dirname(credentials), { recursive: true });
   await writeFile(credentials, JSON.stringify({ token: "fixture-login-token" }), { mode: 0o600 });
-  const env = { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, XDG_CONFIG_HOME: config, CORTEX_ORG_WIKI_BASE: fixture.base };
+  const env = {
+    PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, XDG_CONFIG_HOME: config, CORTEX_ORG_WIKI_BASE: fixture.base,
+    npm_config_userconfig: join(root, "npmrc"), npm_config_globalconfig: join(root, "global-npmrc"), npm_config_cache: join(root, "npm-cache"),
+  };
   const cli = join(repo, "dist", "cli.js");
   async function run(args: string[], override: Record<string, string> = {}, entry = cli, prefix: string[] = []) {
     try { return { code: 0, ...await exec(process.execPath, [...prefix, entry, ...args], { env: { ...env, ...override }, timeout: 15_000 }) }; }
@@ -81,6 +84,33 @@ test("standalone CLI, host identity and clean npm installation", { timeout: 120_
     const result = await run(["doctor", "--org", "org-甲", "--json"], { XDG_CONFIG_HOME: isolated, HIQ_API_KEY: "irrelevant", HIQ_SSO_TOKEN: "irrelevant" });
     assert.equal(result.code, 2);
     assert.equal(JSON.parse(result.stderr).code, "login_required");
+  });
+  await t.test("JSON boolean forms agree for successful commands, argument errors and handler failures", async () => {
+    const variants: [string[], boolean][] = [
+      [[], false], [["--json"], true], [["--json=true"], true], [["--json", "true"], true],
+      [["--json=false"], false], [["--json", "false"], false], [["--no-json"], false],
+      [["--json", "--no-json"], false], [["--no-json", "--json=true"], true],
+    ];
+    for (const [flags, json] of variants) {
+      const result = await run(["doctor", "--org", "org-甲", ...flags]);
+      assert.equal(result.code, 0, result.stderr);
+      assert.equal(result.stderr, "");
+      if (json) assert.equal(JSON.parse(result.stdout).data.user_id, "stored-user");
+      else assert.match(result.stdout, /^账号: stored-user\n组织: org-甲\n/);
+      for (const args of [[], ["unknown-command"], ["search", "topic"], ["read", "--org", "org-甲"], ["doctor", "--org", "org-甲"]]) {
+        const handler = args[0] === "doctor";
+        const failure = await run([...args, ...flags], { CORTEX_ORG_WIKI_TOKEN: "" });
+        assert.equal(failure.code, handler ? 2 : 3, failure.stderr);
+        assert.equal(failure.stdout, "");
+        assert.ok(failure.stderr.trim());
+        if (json) {
+          const error = JSON.parse(failure.stderr);
+          assert.equal(error.ok, false);
+          assert.equal(error.kind, handler ? "config" : "validation");
+          if (handler) assert.equal(error.code, "host_identity_missing");
+        } else assert.throws(() => JSON.parse(failure.stderr));
+      }
+    }
   });
   await t.test("local help and invalid arguments never use network", async () => {
     const count = fixture.requests.length;
@@ -149,6 +179,9 @@ test("standalone CLI, host identity and clean npm installation", { timeout: 120_
     const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
     assert.ok(!JSON.stringify(manifest.dependencies).includes("modelcontextprotocol"));
     const entry = resolve(packageRoot, manifest.bin["cortex-org-wiki"]);
+    const invalid = await run(["search", "topic", "--json=true"], {}, entry);
+    assert.equal(invalid.code, 3);
+    assert.equal(JSON.parse(invalid.stderr).kind, "validation");
     assert.equal((await success(["doctor"], {}, entry)).user_id, "stored-user");
     for (const command of ["read", "links", "sources"]) assert.equal((await success([command, page.nodeid, "--revision", revision], {}, entry)).revision, revision);
     assert.equal((await success(["search", "接口"], {}, entry)).pages[0].nodeid, page.nodeid);
