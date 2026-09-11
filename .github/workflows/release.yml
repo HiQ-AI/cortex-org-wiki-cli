@@ -76,7 +76,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { name: npm-package, path: npm-package }
       - name: Publish to npm (Trusted Publishing — no token)
-        run: npm publish npm-package/*.tgz --access public --provenance --ignore-scripts
+        run: npm publish ./npm-package/*.tgz --access public --provenance --ignore-scripts
 
   github:
     needs: [package, binaries]
