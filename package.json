@@ -1,0 +1,23 @@
+{
+  "name": "@hiq-ai/cortex-org-wiki-cli",
+  "version": "0.1.0",
+  "description": "Read your Cortex organization's published Wiki with versioned source citations.",
+  "type": "module",
+  "bin": { "cortex-org-wiki": "./dist/cli.js" },
+  "engines": { "node": ">=22.20.0" },
+  "files": ["dist", "skills", "docs/agent-setup.md", "README.md", "LICENSE"],
+  "scripts": {
+    "prebuild": "node scripts/generate-assets.mjs",
+    "build": "tsc",
+    "pretest": "npm run build",
+    "test": "tsx --test tests/*.test.ts",
+    "build:bin": "bash scripts/build-binaries.sh",
+    "test:bin": "tsx --test tests/native.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "git+https://github.com/HiQ-AI/cortex-org-wiki-cli.git" },
+  "homepage": "https://github.com/HiQ-AI/cortex-org-wiki-cli",
+  "dependencies": { "qrcode-terminal": "^0.12.0", "yargs": "^18.0.0" },
+  "devDependencies": { "@types/node": "^22.10.0", "@types/qrcode-terminal": "^0.12.2", "@types/yargs": "^17.0.33", "tsx": "^4.19.0", "typescript": "^5.7.0" }
+}
