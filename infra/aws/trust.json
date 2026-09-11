@@ -12,7 +12,7 @@
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:HiQ-AI/cortex-org-wiki-cli:ref:refs/tags/v*"
+          "token.actions.githubusercontent.com:sub": "repo:HiQ-AI@160565119/cortex-org-wiki-cli@1366482576:ref:refs/tags/v*"
         }
       }
     }
