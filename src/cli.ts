@@ -6,18 +6,17 @@ import { setupSkill, type SkillAgent, type SkillScope } from "./skill.js";
 import { CortexClientError, exitCodeFor } from "./types.js";
 import { VERSION } from "./version.js";
 
-const raw = process.argv.slice(2);
+const cli = yargs(process.argv.slice(2)).scriptName("cortex-org-wiki").usage("$0 <command> [options]")
+  .option("json", { type: "boolean", default: false, describe: "机器可读输出" });
 function emit(tool: string, data: Record<string, unknown>, human: string, json: boolean): void {
   process.stdout.write(json ? JSON.stringify({ ok: true, tool, data }) + "\n" : human + "\n");
 }
 async function main(): Promise<void> {
-  let cli = yargs(raw).scriptName("cortex-org-wiki").usage("$0 <command> [options]")
-    .option("json", { type: "boolean", default: false, describe: "机器可读输出" });
   for (const [command, description] of [
     ["search", "检索已发布 Wiki 页面"], ["read", "读取页面正文与引用"],
     ["links", "读取页面关系"], ["sources", "读取材料来源与授权下载入口"],
   ] as [KnowledgeCommand, string][]) {
-    cli = cli.command(`${command} <value>`, description, sub => {
+    cli.command(`${command} <value>`, description, sub => {
       const base = sub.positional("value", { type: "string", describe: command === "search" ? "查询主题" : "稳定页面 ID" })
         .option("org", { type: "string", demandOption: true, describe: "用户或宿主选择的组织 ID" });
       return command === "search" ? base.option("tag", { type: "string" }).option("after", { type: "string" }).option("limit", { type: "number" })
@@ -50,6 +49,7 @@ async function main(): Promise<void> {
 main().catch(error => {
   const kind = error instanceof CortexClientError ? error.kind : "unknown";
   const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(raw.includes("--json") ? JSON.stringify({ ok: false, kind, message, code: error instanceof CortexClientError ? error.code : undefined }) + "\n" : message + "\n");
+  const json = cli.parsed && cli.parsed.argv.json;
+  process.stderr.write(json ? JSON.stringify({ ok: false, kind, message, code: error instanceof CortexClientError ? error.code : undefined }) + "\n" : message + "\n");
   process.exitCode = exitCodeFor(error);
 });

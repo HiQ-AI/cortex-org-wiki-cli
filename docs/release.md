@@ -26,6 +26,14 @@
 
 发布后分别验证正式 CDN 安装、目标宿主发现、原生版本/哈希、Host 身份优先级与真实组织查询。`verify-install` 用隔离项目且不登录。CI fixture、渠道可访问与真实知识验收分别记录。
 
+## v0.1.1 修补范围（未发布）
+
+错误输出使用 yargs 已解析的 `json` 布尔值，使 `--json=true`、显式 false、`--no-json` 及覆盖顺序在成功、参数验证失败和 handler 失败时一致。README 与唯一 Agent 指南移除尚不可用的 npm 安装承诺，继续推荐原生安装入口。
+
+本版尚未推送或发布。GitHub native、CDN 与 npm 发布状态继续分别验收；npm 首发认证尚未完成，不以本地打包或原生渠道成功代替 npm 发布。
+
+本地完整测试 11 项通过（含隔离 npm 包安装）；macOS ARM64 原生 CLI、两宿主安装器与错误格式 6 项通过。五平台交叉构建完成，其他 OS 的实际执行仍需 CI。将错误分支恢复为旧 `includes("--json")` 后，新增布尔矩阵因参数错误输出不是 JSON 而失败，恢复修复后通过；未登录生产或发起真实知识请求。
+
 ## v0.1.0 发布记录
 
 [正式发布](https://github.com/HiQ-AI/cortex-org-wiki-cli/releases/tag/v0.1.0)绑定提交 `daef8b4688821591d92f1ce33f64e1a4456dc1b7`。[发布任务 34629818792](https://github.com/HiQ-AI/cortex-org-wiki-cli/actions/runs/34629818792)中，GitHub Release、使用真实 tag OIDC 的 CDN 同步，以及 macOS、Linux x64/arm64、Windows 四个 runner 的正式 CDN 安装与 native fixture 验证均已通过。AWS 实际 trust 已同步为仓内配置。
