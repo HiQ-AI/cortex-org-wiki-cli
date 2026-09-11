@@ -3,7 +3,7 @@ import { execFile } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, stat, writeFile, access } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { createFixture, page, revision, source } from "./fixture.js";
@@ -58,7 +58,7 @@ test("standalone CLI, host identity and clean npm installation", { timeout: 120_
     const guard = join(root, "guard.mjs");
     await writeFile(guard, `import fs from 'node:fs'; import {syncBuiltinESMExports} from 'node:module'; const original=fs.readFileSync; fs.readFileSync=function(p,...a){ if(String(p).replaceAll('\\\\','/').endsWith('/cortex-org-wiki/credentials.json')) fs.writeFileSync(${JSON.stringify(marker)}, 'read'); return original.call(this,p,...a); }; syncBuiltinESMExports();`);
     for (const token of ["fixture-host-token", "", "expired-token"]) {
-      const result = await run(["doctor", "--org", "org-甲", "--json"], { CORTEX_ORG_WIKI_TOKEN: token }, cli, ["--import", guard]);
+      const result = await run(["doctor", "--org", "org-甲", "--json"], { CORTEX_ORG_WIKI_TOKEN: token }, cli, ["--import", pathToFileURL(guard).href]);
       assert.equal(result.code, token === "fixture-host-token" ? 0 : 2, result.stderr);
       if (result.code === 0) assert.equal(JSON.parse(result.stdout).data.user_id, "host-user");
       await assert.rejects(access(marker));
