@@ -57,7 +57,7 @@
 | `agent-setup.md` | `47fefde952a0ed663a345d0a6c1fb0314de223347864b9872e378b8dd48028b3` |
 | `hiq-ai-cortex-org-wiki-cli-0.1.1.tgz` | `26e4cf456f9e5b793d685ff741953082221458a16ad0cbcdafc70dc280e663a3` |
 
-本地完整测试 11 项、macOS ARM64 native 6 项通过；将错误分支恢复为旧 `includes("--json")` 后，新增布尔矩阵因参数错误输出不是 JSON 而失败，恢复修复后通过。本次只做隔离 fixture 和安装验证，不登录生产，不重复发起组织知识请求；Nora 业务质量与真实宿主查询仍按 Cortex 验收记录报告。去敏发布回执：`/tmp/cortex-org-wiki-v011-release/{assets,run,job-markers}.json`。
+本地完整测试 11 项、macOS ARM64 native 6 项通过；将错误分支恢复为旧 `includes("--json")` 后，新增布尔矩阵因参数错误输出不是 JSON 而失败，恢复修复后通过。上述自动化仅使用隔离 fixture。主会话另从正式稳定安装器安装 0.1.1（macOS ARM64 SHA 与上表一致），复用本轮已授权的独立 CLI 登录，真实生产 `search` 返回一页，`read` 返回组织页 revision `51860f7d-e799-4f00-a8fc-bb1611f4af00`；`--json=true` 参数错误输出 JSON、`--json false` 输出纯文本均通过。去敏回执 `/tmp/cortex-org-wiki-v011-live/proof.json`。这项只读验证不替代 Nora 自动维护质量或 Cowork 模型调用验收。去敏发布回执：`/tmp/cortex-org-wiki-v011-release/{assets,run,job-markers}.json`。
 
 ## v0.1.0 发布记录
 
