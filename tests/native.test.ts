@@ -21,7 +21,8 @@ test("native binary and unified installer in isolated projects", { skip: !binary
   const store = join(config, "cortex-org-wiki");
   await mkdir(store, { recursive: true });
   await writeFile(join(store, "credentials.json"), '{"token":"fixture-login-token"}');
-  const env = { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, TEMP: root, TMP: root, XDG_CONFIG_HOME: config, CORTEX_ORG_WIKI_BASE: fixture.base, CORTEX_ORG_WIKI_TOKEN: "fixture-host-token" };
+  // PowerShell uses PATHEXT to run .exe in-process and collect its exit status.
+  const env = { PATH: process.env.PATH, PATHEXT: process.env.PATHEXT, SystemRoot: process.env.SystemRoot, TEMP: root, TMP: root, XDG_CONFIG_HOME: config, CORTEX_ORG_WIKI_BASE: fixture.base, CORTEX_ORG_WIKI_TOKEN: "fixture-host-token" };
   async function run(file: string, args: string[], overrides: Record<string, string> = {}) {
     try { return { code: 0, ...await exec(file, args, { env: { ...env, ...overrides }, timeout: 25_000 }) }; }
     catch (error) {
