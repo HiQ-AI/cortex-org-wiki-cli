@@ -23,7 +23,7 @@ test("native binary and unified installer in isolated projects", { skip: !binary
   await writeFile(join(store, "credentials.json"), '{"token":"fixture-login-token"}');
   // PowerShell uses PATHEXT to run .exe in-process and collect its exit status.
   const env = { PATH: process.env.PATH, PATHEXT: process.env.PATHEXT, SystemRoot: process.env.SystemRoot, TEMP: root, TMP: root, XDG_CONFIG_HOME: config, CORTEX_ORG_WIKI_BASE: fixture.base, CORTEX_ORG_WIKI_TOKEN: "fixture-host-token" };
-  async function run(file: string, args: string[], overrides: Record<string, string> = {}) {
+  async function run(file: string, args: string[], overrides: Record<string, string | undefined> = {}) {
     try { return { code: 0, ...await exec(file, args, { env: { ...env, ...overrides }, timeout: 25_000 }) }; }
     catch (error) {
       const result = error as Error & { code: number; stdout: string; stderr: string };
@@ -48,6 +48,19 @@ test("native binary and unified installer in isolated projects", { skip: !binary
       assert.equal((await run(binary!, ["doctor", "--org", "org-甲", "--json"], { CORTEX_ORG_WIKI_TOKEN: "" })).code, 2);
       await rm(join(store, "credentials.json"));
     }
+  });
+  await t.test("compiled native login performs device flow and uses its own store", async () => {
+    const standalone = join(root, "standalone-config");
+    const overrides = { CORTEX_ORG_WIKI_TOKEN: undefined, XDG_CONFIG_HOME: standalone };
+    const login = await run(binary!, ["login", "--json"], overrides);
+    assert.equal(login.code, 0, login.stderr);
+    assert.match(login.stderr, /https:\/\/example.invalid\/authorize/);
+    assert.ok(!login.stdout.includes("fixture-login-token"));
+    assert.equal(fixture.oauth[0].body.scope, "cortex_data");
+    const doctor = await run(binary!, ["doctor", "--org", "org-甲", "--json"], overrides);
+    assert.equal(JSON.parse(doctor.stdout).data.user_id, "stored-user", doctor.stderr);
+    assert.equal((await run(binary!, ["logout", "--json"], overrides)).code, 0);
+    await assert.rejects(access(join(standalone, "cortex-org-wiki/credentials.json")));
   });
   const windows = process.platform === "win32";
   const platform = `${process.platform === "darwin" ? "darwin" : windows ? "windows" : "linux"}-${process.arch === "arm64" ? "arm64" : "x64"}`;
