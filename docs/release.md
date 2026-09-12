@@ -6,7 +6,7 @@
 
 发布前需要仓库管理员完成：
 
-- npm 包首次创建及 Trusted Publisher：organization `HiQ-AI`、repository `cortex-org-wiki-cli`、workflow `release.yml`。使用 npm OIDC/provenance，不保存 npm token。
+- npm 包首次创建及 Trusted Publisher：organization `HiQ-AI`、repository `cortex-org-wiki-cli`、workflow `release.yml`。使用 npm OIDC/provenance，不保存 npm token。（2026-09-12 已配置，自 v0.1.2 起由 CI 自动发布。）
 - GitHub Actions 对本仓的 Release 写权限。
 - `DOWNLOAD_AWS_ROLE_ARN`、`DOWNLOAD_S3_BUCKET`、`DOWNLOAD_CF_DIST_ID` 三个 repository variables。AWS OIDC trust 使用本仓原生 immutable subject（组织 ID `160565119`、仓库 ID `1366482576`），只允许 `refs/tags/v*`，角色只写 S3 `cli/cortex-org-wiki/*` 并对指定 CloudFront distribution 建立 invalidation，不复用其他仓库长效 key。
 
@@ -25,6 +25,12 @@
 五平台为 darwin-arm64、darwin-x64、linux-x64、linux-arm64、windows-x64。构建为市场 skill 装入 `metadata.cli: {name, version, sha256: {<platform>: <raw-binary-sha256>}}`。技能正文不写二进制 hash，避免嵌入内容与 hash 自引用。版本来自 package，正文来自唯一源文件。
 
 发布后分别验证正式 CDN 安装、目标宿主发现、原生版本/哈希、Host 身份优先级与真实组织查询。`verify-install` 用隔离项目且不登录。CI fixture、渠道可访问与真实知识验收分别记录。
+
+## v0.1.2 发布记录
+
+[PR #5](https://github.com/HiQ-AI/cortex-org-wiki-cli/pull/5) 更新 README 与 Agent 指南的 npm 说明，[PR #6](https://github.com/HiQ-AI/cortex-org-wiki-cli/pull/6) 只 bump 版本，无代码改动；[正式发布](https://github.com/HiQ-AI/cortex-org-wiki-cli/releases/tag/v0.1.2)绑定 main 提交 `22e20bb0f36193f325cfc307bb654e2f3bf4c65e`。目的是验证刚配置的 npm Trusted Publisher，并把新指南推上 CDN。
+
+[发布任务 34719606929](https://github.com/HiQ-AI/cortex-org-wiki-cli/actions/runs/34719606929)全部 job 成功。[npm job](https://github.com/HiQ-AI/cortex-org-wiki-cli/actions/runs/34719606929/job/103622987870)通过 OIDC 自动发布 `@hiq-ai/cortex-org-wiki-cli@0.1.2`（shasum `fe7cbfc39bf80837077d67d50e6438406b726246`），provenance 写入 Sigstore 透明日志 `logIndex=2811424417`，registry `dist.attestations` 为 SLSA provenance v1，`latest` 指向 0.1.2；干净环境 `npm install` 后 `--version` 输出 0.1.2，`npm audit signatures` 验证签名与 attestation 通过。GitHub Release 与 CDN 同步成功，CDN `agent-setup.md` 已含 npx 说明；macOS ARM64、Linux x64、Linux ARM64、Windows x64 四个 runner 从稳定 CDN 安装 0.1.2 并实际运行通过。
 
 ## v0.1.1 发布记录
 
