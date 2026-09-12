@@ -30,7 +30,7 @@ Windows PowerShell：
 
 默认项目范围。Codex 写入项目或用户的 `.agents/skills/cortex-org-wiki/`；Claude Code 写入对应 `.claude/skills/cortex-org-wiki/`。同内容可重复安装，不同内容报冲突；只有确认应替换后使用 `--replace-skill` / `-ReplaceSkill`。不为其他宿主猜目录或安装到所有全局目录。
 
-已有 CLI 可以直接运行 `cortex-org-wiki skill setup --agent codex --scope project --json`，可加 `--project '<path>'`。npm 渠道尚未完成首次发布，当前使用上面的原生安装入口。标准 skills 安装器也可从本公开仓库精准安装 `--skill cortex-org-wiki --agent codex|claude-code`；统一入口已包含 skill，无需重复安装。
+已有 CLI 可以直接运行 `cortex-org-wiki skill setup --agent codex --scope project --json`，可加 `--project '<path>'`。已有 Node 的宿主也可以 `npx @hiq-ai/cortex-org-wiki-cli <命令>`（npm 自 0.1.1 起可用），默认仍用上面的原生安装入口。标准 skills 安装器也可从本公开仓库精准安装 `--skill cortex-org-wiki --agent codex|claude-code`；统一入口已包含 skill，无需重复安装。
 
 Cortex Cowork 的市场安装由现有 Host 管理 skill 和对应 CLI，采用市场产物的 `metadata.cli`。不要用 `--agent cortex`（它是其他产品的标识），不要写 Cortex 私有 profile 或用 `save_skill` 代替安装。是否已供给可用 CLI，以当前会话实际命令结果为准。
 
