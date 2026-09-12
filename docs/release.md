@@ -41,7 +41,7 @@
 | [Linux ARM64](https://github.com/HiQ-AI/cortex-org-wiki-cli/actions/runs/34650778157/job/103432923765) | 0.1.1，6/6 |
 | [Windows x64](https://github.com/HiQ-AI/cortex-org-wiki-cli/actions/runs/34650778157/job/103432923646) | 0.1.1，6/6 |
 
-[npm job](https://github.com/HiQ-AI/cortex-org-wiki-cli/actions/runs/34650778157/job/103432285053)已正确读取 tarball，但 registry PUT 返回 `E404`（包不存在或无发布权限），所以整个 workflow 为 failure；npm 首次创建及 Trusted Publisher 仍未就绪，**0.1.1 未发布到 npm**。GitHub 上可下载的 npm tarball 不等于 registry 发布成功。
+[npm job](https://github.com/HiQ-AI/cortex-org-wiki-cli/actions/runs/34650778157/job/103432285053)已正确读取 tarball，但 registry PUT 返回 `E404`（包不存在或无发布权限），所以整个 workflow 为 failure。2026-09-12 由仓库管理员在本机用 npm 账号登录后发布了该 Release 附带的同一 tarball（`npm publish --access public`），registry 上 `@hiq-ai/cortex-org-wiki-cli@0.1.1` 的 shasum `be49f5a578721854fe5141135dd2d786dcb01899` 与 GitHub Release 附件一致；干净环境 `npm exec --package=@hiq-ai/cortex-org-wiki-cli@0.1.1 -- cortex-org-wiki --version` 输出 `0.1.1`。首版没有 provenance；后续 tag 要由 CI 自动发布，仍需在 npmjs.com 该包的 Publishing access 里添加 Trusted Publisher（见上）。
 
 独立回查五个正式 `/v0.1.1/` 裸二进制的全部字节，SHA-256 均与 GitHub `checksums.txt` 相符。CDN 版本目录和 latest 的 checksums、技能 MD/ZIP、指南与 GitHub 相同，稳定安装器和指南与 tag 源码相同；ZIP 内 SKILL 与独立 MD 逐字一致。市场同步必须采用这份发布件，不能使用本机构建摘要。
 

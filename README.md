@@ -22,7 +22,7 @@ Windows PowerShell：
 
 默认安装 CLI 和当前项目的 `cortex-org-wiki` skill。Claude Code 改用 `claude-code`。支持 `--scope user` / `-Scope user`；`--cli-only` / `-CliOnly`、`--skill-only` / `-SkillOnly` 可分别安装。完整参数见 [Agent 指南](docs/agent-setup.md)。无需 Node；技能正文嵌在同版本二进制内。
 
-npm 渠道尚未完成首次发布；当前使用上面的原生安装入口。Cortex Cowork 的市场安装由 Host 供给同源 skill 与 CLI；以该会话的实际 CLI 和身份检查结果确认是否接通。
+已有 Node 的宿主也可以直接 `npx @hiq-ai/cortex-org-wiki-cli --version`（npm 自 0.1.1 起可用）；默认仍推荐上面的原生安装入口。Cortex Cowork 的市场安装由 Host 供给同源 skill 与 CLI；以该会话的实际 CLI 和身份检查结果确认是否接通。
 
 ## 查询与身份
 
