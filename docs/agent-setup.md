@@ -38,6 +38,8 @@ Cortex Cowork 的市场安装由现有 Host 管理 skill 和对应 CLI，采用�
 
 `--version` 低于需要的版本时，重新运行同一安装入口，带上原来的 `--agent`、`--scope`、`--project`。安装脚本先把新 CLI 放到位，再用新 CLI 安装 skill：之前正式发布的 skill 自动更新为 `updated`；遇到 `skill_conflict` 时 CLI 已经升级，只有 skill 未写入，确认替换后加 `--replace-skill` / `-ReplaceSkill` 重跑。
 
+之前手动导入过组织知识类 skill（例如 `organization-knowledge`）的，安装 `cortex-org-wiki` 后在宿主中删除旧 skill，避免两份 Wiki 指令同时加载；它不是本仓的正式发布，安装脚本不会自动替换或删除它。
+
 ## 安装后检查
 
 成功时 stdout 只有一行 JSON，进度在 stderr：
