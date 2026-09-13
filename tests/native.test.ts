@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFile, mkdtemp, mkdir, readFile, rm, writeFile, access } from "node:fs/promises";
+import { copyFile, mkdtemp, mkdir, readFile, realpath, rm, writeFile, access } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -117,6 +117,12 @@ test("native binary and unified installer in isolated projects", { skip: !binary
     assert.equal(output.tool, "install");
     return output.data as { cli: { path: string; version: string; previous_version: string | null } | null; skills: { agent: string; path: string; status: string }[] };
   }
+  /** Windows reports the long form of 8.3 temp paths (RUNNER~1 → runneradmin), so compare the resolved file. */
+  async function assertCli(cli: { path: string; version: string; previous_version: string | null } | null, target: string, previous: string | null) {
+    assert.ok(cli);
+    assert.equal(await realpath(cli.path), await realpath(join(target, commandName)));
+    assert.deepEqual([cli.version, cli.previous_version], [version, previous]);
+  }
   function failure(result: { code: number; stdout: string; stderr: string }) {
     assert.notEqual(result.code, 0);
     assert.equal(result.stdout, "");
@@ -128,7 +134,7 @@ test("native binary and unified installer in isolated projects", { skip: !binary
     for (const [agent, folder] of [["codex", ".agents"], ["claude-code", ".claude"]]) {
       const project = join(root, agent); const target = join(root, `${agent}-bin`);
       const data = installed(await install("both", agent, project, target));
-      assert.deepEqual(data.cli, { path: join(target, commandName), version, previous_version: null });
+      await assertCli(data.cli, target, null);
       assert.deepEqual(data.skills.map(skill => [skill.agent, skill.status]), [[agent, "installed"]]);
       assert.equal(await readFile(join(project, folder, "skills/cortex-org-wiki/SKILL.md"), "utf8"), original);
       assert.equal((await run(join(target, commandName), ["search", "接口", "--org", "org-甲", "--json"])).code, 0);
@@ -140,7 +146,7 @@ test("native binary and unified installer in isolated projects", { skip: !binary
     installed(await install("both", "codex", project, target));
     await writeFile(join(project, ".agents/skills/cortex-org-wiki/SKILL.md"), (await previousOfficialSkills())[0]);
     const data = installed(await install("both", "codex,claude-code", project, target));
-    assert.deepEqual(data.cli, { path: join(target, commandName), version, previous_version: version });
+    await assertCli(data.cli, target, version);
     assert.deepEqual(data.skills.map(skill => [skill.agent, skill.status]), [["codex", "updated"], ["claude-code", "installed"]]);
     for (const folder of [".agents", ".claude"]) assert.equal(await readFile(join(project, folder, "skills/cortex-org-wiki/SKILL.md"), "utf8"), original);
     if (!windows) {
