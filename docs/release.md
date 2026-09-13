@@ -26,6 +26,12 @@
 
 发布后分别验证正式 CDN 安装、目标宿主发现、原生版本/哈希、Host 身份优先级与真实组织查询。`verify-install` 用隔离项目且不登录。CI fixture、渠道可访问与真实知识验收分别记录。
 
+## v0.1.4 发布记录
+
+[PR #10](https://github.com/HiQ-AI/cortex-org-wiki-cli/pull/10) 修正 skill、Agent 指南与 README 中的最低版本说明：`browse` 与 `search --type` 需要 0.1.3 及以上，旧版本会以退出码 3 拒绝；skill 正文随二进制内嵌，因此发 0.1.4。无代码行为变化。[正式发布](https://github.com/HiQ-AI/cortex-org-wiki-cli/releases/tag/v0.1.4)绑定 main 提交 `35aac9b6e16492998fb0634bed5e357be14ed58c`。
+
+[发布任务 34741681817](https://github.com/HiQ-AI/cortex-org-wiki-cli/actions/runs/34741681817)全部 job 成功；npm 经 Trusted Publishing 发布并带 provenance，shasum `5d1c5cd515d717b7f8f02736751efe80da63d5ad`，`latest` 指向 0.1.4；干净环境安装后 `--version` 输出 0.1.4，`npm audit signatures` 通过；CDN 指南已更新为新的最低版本说明。
+
 ## v0.1.3 发布记录
 
 [PR #8](https://github.com/HiQ-AI/cortex-org-wiki-cli/pull/8) 新增 `browse`（不带关键词，`--type` / `--tag` 浏览，服务端 `order=recent`）与 `search --type`，并在帮助、README、Agent 指南与 skill 中说明多关键词全部命中、标题别名优先；[正式发布](https://github.com/HiQ-AI/cortex-org-wiki-cli/releases/tag/v0.1.3)绑定 main 提交 `7b38dbefaeba1eb3de099908b2cfed3ffe417bec`。服务端能力随 Cortex `nomad-v0.0.333`（#1326）与 `deck-v0.7.259`（#1327）先行上线。
