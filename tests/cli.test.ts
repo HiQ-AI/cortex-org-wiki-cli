@@ -6,7 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { test } from "node:test";
-import { createFixture, page, revision, source } from "./fixture.js";
+import { createFixture, page, previousOfficialSkills, revision, source } from "./fixture.js";
 
 const exec = promisify(execFile);
 const repo = fileURLToPath(new URL("..", import.meta.url));
@@ -125,6 +125,7 @@ test("standalone CLI, host identity and clean npm installation", { timeout: 120_
     for (const args of [["search", ""], ["search", "topic"], ["search", "topic", "--org", "org-甲", "--limit", "1.5"], ["read", "../page", "--org", "org-甲"], ["publish", "anything"], ["skill", "setup", "--agent", "cortex"]]) {
       const result = await run([...args, "--json"]);
       assert.equal(result.code, 3, result.stderr);
+      assert.deepEqual([JSON.parse(result.stderr).kind, JSON.parse(result.stderr).code], ["validation", "invalid_argument"]);
     }
     assert.equal(fixture.requests.length, count);
   });
@@ -165,22 +166,52 @@ test("standalone CLI, host identity and clean npm installation", { timeout: 120_
     assert.equal((await run(["login", "--json"], { XDG_CONFIG_HOME: isolated })).code, 4);
     await assert.rejects(access(path));
   });
-  await t.test("skill setup targets one host, is idempotent and preserves customized content", async () => {
+  await t.test("skill setup targets selected hosts, is idempotent, upgrades official releases and preserves customized content", async () => {
     const original = await readFile(join(repo, "skills/cortex-org-wiki/SKILL.md"), "utf8");
+    const skillPath = (project: string, directory: string) => join(project, directory, "skills/cortex-org-wiki/SKILL.md");
     for (const [agent, directory] of [["codex", ".agents"], ["claude-code", ".claude"]]) {
       const project = join(root, agent);
       const args = ["skill", "setup", "--agent", agent, "--project", project, "--json"];
       const installed = await run(args, { XDG_CONFIG_HOME: join(root, "no-login") });
       assert.equal(installed.code, 0, installed.stderr);
-      const path = join(project, directory, "skills/cortex-org-wiki/SKILL.md");
+      const path = skillPath(project, directory);
+      assert.deepEqual(JSON.parse(installed.stdout).data.skills.map((skill: { agent: string; path: string; status: string }) => [skill.agent, skill.path, skill.status]), [[agent, path, "installed"]]);
       assert.equal(await readFile(path, "utf8"), original);
-      assert.equal(JSON.parse((await run(args)).stdout).data.status, "unchanged");
+      assert.equal(JSON.parse((await run(args)).stdout).data.skills[0].status, "unchanged");
+      for (const previous of await previousOfficialSkills()) {
+        await writeFile(path, previous);
+        const upgraded = await run(args);
+        assert.equal(upgraded.code, 0, upgraded.stderr);
+        assert.equal(JSON.parse(upgraded.stdout).data.skills[0].status, "updated");
+        assert.equal(await readFile(path, "utf8"), original);
+      }
       await writeFile(path, "user customized skill");
-      assert.equal((await run(args)).code, 2);
+      const conflict = await run(args);
+      assert.equal(conflict.code, 2);
+      assert.equal(JSON.parse(conflict.stderr).code, "skill_conflict");
+      assert.match(JSON.parse(conflict.stderr).message, / --replace /);
       assert.equal(await readFile(path, "utf8"), "user customized skill");
       assert.equal((await run([...args, "--replace"])).code, 0);
       assert.equal(await readFile(path, "utf8"), original);
     }
+    const project = join(root, "both-hosts");
+    const both = ["skill", "setup", "--agent", "codex", "--agent", "claude-code", "--project", project, "--json"];
+    const installed = await run(both);
+    assert.equal(installed.code, 0, installed.stderr);
+    assert.deepEqual(JSON.parse(installed.stdout).data.skills.map((skill: { agent: string; status: string }) => [skill.agent, skill.status]), [["codex", "installed"], ["claude-code", "installed"]]);
+    for (const directory of [".agents", ".claude"]) assert.equal(await readFile(skillPath(project, directory), "utf8"), original);
+    await writeFile(skillPath(project, ".claude"), "user customized skill");
+    await writeFile(skillPath(project, ".agents"), (await previousOfficialSkills())[0]);
+    const conflict = await run(both);
+    assert.equal(conflict.code, 2);
+    assert.equal(JSON.parse(conflict.stderr).code, "skill_conflict");
+    assert.equal(conflict.stdout, "");
+    assert.notEqual(await readFile(skillPath(project, ".agents"), "utf8"), original, "a conflict on one host writes no host");
+    // A file where the project directory should be is an unexpected filesystem error, still with a code.
+    const notDirectory = join(root, "not-a-directory"); await writeFile(notDirectory, "");
+    const unexpected = await run(["skill", "setup", "--agent", "codex", "--project", notDirectory, "--json"]);
+    assert.equal(unexpected.code, 1, unexpected.stderr);
+    assert.deepEqual([JSON.parse(unexpected.stderr).kind, JSON.parse(unexpected.stderr).code], ["unknown", "unexpected_error"]);
   });
   await t.test("clean npm package installs independently with guide and same embedded skill", { timeout: 60_000 }, async () => {
     const npm = process.env.npm_execpath; assert.ok(npm);
@@ -203,7 +234,7 @@ test("standalone CLI, host identity and clean npm installation", { timeout: 120_
     assert.equal((await success(["search", "接口"], {}, entry)).pages[0].nodeid, page.nodeid);
     const result = await run(["skill", "setup", "--agent", "codex", "--project", join(root, "npm-skills"), "--json"], {}, entry);
     assert.equal(result.code, 0, result.stderr);
-    assert.equal(await readFile(JSON.parse(result.stdout).data.path, "utf8"), await readFile(join(packageRoot, "skills/cortex-org-wiki/SKILL.md"), "utf8"));
+    assert.equal(await readFile(JSON.parse(result.stdout).data.skills[0].path, "utf8"), await readFile(join(packageRoot, "skills/cortex-org-wiki/SKILL.md"), "utf8"));
   });
   assert.ok(fixture.requests.every(request => request.apiKey === undefined && !request.path.includes("mcp")));
 });

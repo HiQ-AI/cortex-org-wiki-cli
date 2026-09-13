@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFile, mkdtemp, mkdir, readFile, rm, writeFile, access } from "node:fs/promises";
+import { copyFile, mkdtemp, mkdir, readFile, realpath, rm, writeFile, access } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { test } from "node:test";
-import { createFixture, page, revision } from "./fixture.js";
+import { createFixture, page, previousOfficialSkills, revision } from "./fixture.js";
 
 const exec = promisify(execFile);
 const binary = process.env.CORTEX_ORG_WIKI_TEST_BINARY;
@@ -98,31 +98,95 @@ test("native binary and unified installer in isolated projects", { skip: !binary
   t.after(async () => { downloads.closeAllConnections(); await new Promise<void>(done => downloads.close(() => done())); });
   const address = downloads.address(); assert.ok(address && typeof address !== "string");
   const downloadBase = `http://127.0.0.1:${address.port}`;
-  function installArgs(mode: "both" | "cli" | "skill", agent: string, project: string, target: string) {
-    if (windows) return ["-NoProfile", "-File", join(repo, "scripts/install.ps1"), "-Agent", agent, "-Project", project, "-InstallDir", target, "-BaseUrl", downloadBase, ...(mode === "both" ? [] : [mode === "cli" ? "-CliOnly" : "-SkillOnly"])];
-    return [join(repo, "scripts/install.sh"), "--agent", agent, "--project", project, "--install-dir", target, "--base-url", downloadBase, ...(mode === "both" ? [] : [mode === "cli" ? "--cli-only" : "--skill-only"])];
+  const original = await readFile(join(repo, "skills/cortex-org-wiki/SKILL.md"), "utf8");
+  const version = (await run(binary!, ["version"])).stdout.trim();
+  const replaceFlag = windows ? "-ReplaceSkill" : "--replace-skill";
+  function install(mode: "both" | "cli" | "skill", agents: string, project: string, target: string, extra: string[] = [], overrides: Record<string, string> = {}) {
+    const args = windows
+      ? ["-NoProfile", "-File", join(repo, "scripts/install.ps1"), "-Agent", agents, "-Project", project, "-InstallDir", target, "-BaseUrl", downloadBase, ...(mode === "both" ? [] : [mode === "cli" ? "-CliOnly" : "-SkillOnly"])]
+      : [join(repo, "scripts/install.sh"), "--agent", agents, "--project", project, "--install-dir", target, "--base-url", downloadBase, ...(mode === "both" ? [] : [mode === "cli" ? "--cli-only" : "--skill-only"])];
+    return run(windows ? "pwsh" : "sh", [...args, ...extra], overrides);
+  }
+  /** Success is exactly one JSON line on stdout, with progress kept on stderr. */
+  function installed(result: { code: number; stdout: string; stderr: string }) {
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(result.stdout, /^[^\r\n]+\r?\n$/u, `stdout must be one JSON line: ${result.stdout}`);
+    assert.ok(result.stderr.includes(downloadBase), result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.ok, true);
+    assert.equal(output.tool, "install");
+    return output.data as { cli: { path: string; version: string; previous_version: string | null } | null; skills: { agent: string; path: string; status: string }[] };
+  }
+  /** Windows reports the long form of 8.3 temp paths (RUNNER~1 → runneradmin), so compare the resolved file. */
+  async function assertCli(cli: { path: string; version: string; previous_version: string | null } | null, target: string, previous: string | null) {
+    assert.ok(cli);
+    assert.equal(await realpath(cli.path), await realpath(join(target, commandName)));
+    assert.deepEqual([cli.version, cli.previous_version], [version, previous]);
+  }
+  function failure(result: { code: number; stdout: string; stderr: string }) {
+    assert.notEqual(result.code, 0);
+    assert.equal(result.stdout, "");
+    const line = result.stderr.split(/\r?\n/u).find(item => item.startsWith('{"ok":false'));
+    assert.ok(line, result.stderr);
+    return JSON.parse(line) as { kind: string; code: string; message: string };
   }
   await t.test("one installer installs CLI plus the exact discoverable skill for either host", async () => {
     for (const [agent, folder] of [["codex", ".agents"], ["claude-code", ".claude"]]) {
       const project = join(root, agent); const target = join(root, `${agent}-bin`);
-      const result = await run(windows ? "pwsh" : "sh", installArgs("both", agent, project, target));
-      assert.equal(result.code, 0, result.stderr);
-      assert.equal(await readFile(join(project, folder, "skills/cortex-org-wiki/SKILL.md"), "utf8"), await readFile(join(repo, "skills/cortex-org-wiki/SKILL.md"), "utf8"));
+      const data = installed(await install("both", agent, project, target));
+      await assertCli(data.cli, target, null);
+      assert.deepEqual(data.skills.map(skill => [skill.agent, skill.status]), [[agent, "installed"]]);
+      assert.equal(await readFile(join(project, folder, "skills/cortex-org-wiki/SKILL.md"), "utf8"), original);
       assert.equal((await run(join(target, commandName), ["search", "接口", "--org", "org-甲", "--json"])).code, 0);
       await assert.rejects(access(join(project, folder === ".agents" ? ".claude" : ".agents")));
     }
   });
+  await t.test("rerunning the installer upgrades the CLI and a previously released skill for several hosts", async () => {
+    const project = join(root, "upgrade-project"); const target = join(root, "upgrade-bin");
+    installed(await install("both", "codex", project, target));
+    await writeFile(join(project, ".agents/skills/cortex-org-wiki/SKILL.md"), (await previousOfficialSkills())[0]);
+    const data = installed(await install("both", "codex,claude-code", project, target));
+    await assertCli(data.cli, target, version);
+    assert.deepEqual(data.skills.map(skill => [skill.agent, skill.status]), [["codex", "updated"], ["claude-code", "installed"]]);
+    for (const folder of [".agents", ".claude"]) assert.equal(await readFile(join(project, folder, "skills/cortex-org-wiki/SKILL.md"), "utf8"), original);
+    if (!windows) {
+      const repeated = installed(await run("sh", [join(repo, "scripts/install.sh"), "--agent", "codex", "--agent", "claude-code", "--project", project, "--install-dir", target, "--base-url", downloadBase]));
+      assert.deepEqual(repeated.skills.map(skill => skill.status), ["unchanged", "unchanged"]);
+    }
+  });
+  await t.test("customized skill content fails the install without blocking the CLI upgrade", async () => {
+    const project = join(root, "custom-project"); const target = join(root, "custom-bin");
+    const path = join(project, ".claude/skills/cortex-org-wiki/SKILL.md");
+    await mkdir(join(project, ".claude/skills/cortex-org-wiki"), { recursive: true });
+    await writeFile(path, "user customized skill");
+    const error = failure(await install("both", "codex,claude-code", project, target));
+    assert.deepEqual([error.kind, error.code], ["config", "skill_conflict"]);
+    assert.ok(error.message.includes(replaceFlag), error.message);
+    assert.equal((await run(join(target, commandName), ["version"])).stdout.trim(), version);
+    assert.equal(await readFile(path, "utf8"), "user customized skill");
+    await assert.rejects(access(join(project, ".agents")));
+    const data = installed(await install("both", "codex,claude-code", project, target, [replaceFlag]));
+    assert.deepEqual(data.skills.map(skill => [skill.agent, skill.status]), [["codex", "installed"], ["claude-code", "updated"]]);
+    assert.equal(await readFile(path, "utf8"), original);
+  });
+  await t.test("an unsupported agent fails validation as JSON under a UTF-8 locale", async () => {
+    // macOS sh (bash 3.2) reads a multibyte character right after an unbraced variable as part of its name.
+    const target = join(root, "unsupported-bin");
+    const result = await install("both", "cortex", join(root, "unsupported-project"), target, [], { LC_ALL: "en_US.UTF-8" });
+    assert.deepEqual([failure(result).kind, failure(result).code], ["validation", "invalid_argument"]);
+    if (!windows) assert.equal(result.code, 3, result.stderr);
+    await assert.rejects(access(target));
+  });
   await t.test("CLI-only and skill-only modes are independent and corrupt downloads fail closed", async () => {
     for (const mode of ["cli", "skill"] as const) {
       const project = join(root, `${mode}-project`); const target = join(root, `${mode}-bin`);
-      const result = await run(windows ? "pwsh" : "sh", installArgs(mode, "codex", project, target));
-      assert.equal(result.code, 0, result.stderr);
-      if (mode === "cli") { await access(join(target, commandName)); await assert.rejects(access(join(project, ".agents"))); }
-      else { await access(join(project, ".agents/skills/cortex-org-wiki/SKILL.md")); await assert.rejects(access(join(target, commandName))); }
+      const data = installed(await install(mode, "codex", project, target));
+      if (mode === "cli") { assert.deepEqual(data.skills, []); await access(join(target, commandName)); await assert.rejects(access(join(project, ".agents"))); }
+      else { assert.equal(data.cli, null); await access(join(project, ".agents/skills/cortex-org-wiki/SKILL.md")); await assert.rejects(access(join(target, commandName))); }
     }
     corruptChecksum = true;
     const target = join(root, "corrupt-bin");
-    assert.notEqual((await run(windows ? "pwsh" : "sh", installArgs("both", "codex", join(root, "corrupt-project"), target))).code, 0);
+    assert.equal(failure(await install("both", "codex", join(root, "corrupt-project"), target)).code, "checksum_mismatch");
     await assert.rejects(access(join(target, commandName)));
   });
 });

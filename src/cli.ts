@@ -2,7 +2,7 @@
 import yargs from "yargs";
 import { formatKnowledge, organizationIdentity, PAGE_TYPES, readKnowledge, type KnowledgeCommand } from "./knowledge.js";
 import { runLogin, runLogout } from "./login.js";
-import { setupSkill, type SkillAgent, type SkillScope } from "./skill.js";
+import { setupSkills, SKILL_AGENTS, type SkillAgent, type SkillScope } from "./skill.js";
 import { CortexClientError, exitCodeFor } from "./types.js";
 import { VERSION } from "./version.js";
 
@@ -36,22 +36,25 @@ async function main(): Promise<void> {
     emit("doctor", data, `账号: ${data.user_id}\n组织: ${data.organization_id}\n组织管理员: ${data.is_organization_admin ? "是" : "否"}`, args.json);
   }).command("login", "打开授权链接登录；CLI 自动等待授权", {}, args => runLogin(Boolean(args.json)))
     .command("logout", "退出本机 CLI 登录", {}, args => runLogout(Boolean(args.json)))
-    .command("skill", "安装同包标准 skill", sub => sub.command("setup", "只安装到明确选择的宿主", setup => setup
-      .option("agent", { choices: ["codex", "claude-code"] as const, demandOption: true })
+    .command("skill", "安装同包标准 skill", sub => sub.command("setup", "只安装到明确选择的宿主；可重复 --agent", setup => setup
+      .option("agent", { type: "string", array: true, choices: SKILL_AGENTS, demandOption: true, describe: "目标宿主，可重复指定" })
       .option("scope", { choices: ["project", "user"] as const, default: "project" })
       .option("replace", { type: "boolean", default: false, describe: "明确替换已存在的不同 skill 内容" })
       .option("project", { type: "string", describe: "项目目录；默认当前目录" }), async args => {
-      const data = await setupSkill(args.agent as SkillAgent, args.scope as SkillScope, args.project, args.replace);
-      emit("skill setup", data, `Skill ${data.status}: ${data.path}`, args.json);
+      const data = await setupSkills(args.agent as SkillAgent[], args.scope as SkillScope, args.project, args.replace);
+      emit("skill setup", data, data.skills.map(skill => `Skill ${skill.status}: ${skill.path}`).join("\n"), args.json);
     }).demandCommand(1))
     .command("version", "打印版本", {}, () => { process.stdout.write(VERSION + "\n"); })
     .demandCommand(1).strict().help().alias("h", "help").version(VERSION)
     .fail((message, error) => { throw error ?? new CortexClientError("validation", message); }).parse();
 }
+/** Failure lines always carry a code; errors without a specific one get their kind's generic code. */
+const GENERIC_CODE = { config: "config_error", validation: "invalid_argument", transport: "transport_error", upstream: "upstream_error", unknown: "unexpected_error" } as const;
 main().catch(error => {
   const kind = error instanceof CortexClientError ? error.kind : "unknown";
+  const code = (error instanceof CortexClientError && error.code) || GENERIC_CODE[kind];
   const message = error instanceof Error ? error.message : String(error);
   const json = cli.parsed && cli.parsed.argv.json;
-  process.stderr.write(json ? JSON.stringify({ ok: false, kind, message, code: error instanceof CortexClientError ? error.code : undefined }) + "\n" : message + "\n");
+  process.stderr.write(json ? JSON.stringify({ ok: false, kind, code, message }) + "\n" : message + "\n");
   process.exitCode = exitCodeFor(error);
 });

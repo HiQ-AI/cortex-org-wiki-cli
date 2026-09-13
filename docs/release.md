@@ -1,6 +1,6 @@
 # 发布入口与验收
 
-初版包 `@hiq-ai/cortex-org-wiki-cli@0.1.0`；命令/skill `cortex-org-wiki`。版本只修改 `package.json`，构建生成版本常量和内嵌技能。
+初版包 `@hiq-ai/cortex-org-wiki-cli@0.1.0`；命令/skill `cortex-org-wiki`。版本只修改 `package.json`，构建生成版本常量和内嵌技能，并从全部 `v*` tag 的 `SKILL.md` 生成以往正式 skill 的摘要，安装时据此自动升级、只对未知内容报冲突。因此 CI 与发布各 job 的 checkout 取完整历史（`fetch-depth: 0`）；tag 构建看不到更早的 `v*` tag 时生成脚本直接失败，本地无 tag 的开发构建只是列表为空。
 
 `v<version>` tag 运行 release workflow。测试后生成 npm tarball 与五平台 native 产物；npm 发布和 GitHub native release 是独立 job，CDN 只依赖 GitHub release。npm 权限未就绪时应真实失败，不阻断 native 渠道，也不报告全渠道完成。
 
