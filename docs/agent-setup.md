@@ -28,7 +28,7 @@ Windows PowerShell：
 | 指定项目 | `--project '<path>'` | `-Project '<path>'` |
 | 指定 CLI 目录 | `--install-dir '<path>'` | `-InstallDir '<path>'` |
 
-默认项目范围。Codex 写入项目或用户的 `.agents/skills/cortex-org-wiki/`；Claude Code 写入对应 `.claude/skills/cortex-org-wiki/`。同内容可重复安装；已有内容是本仓任一正式发布版本的 skill 时自动更新为当前版本；其他内容（本地修改或来源不明）报 `skill_conflict`，所选宿主都不写入，只有确认应替换后使用 `--replace-skill` / `-ReplaceSkill`。不为其他宿主猜目录或安装到所有全局目录。
+默认项目范围。Codex 写入项目或用户的 `.agents/skills/cortex-org-wiki/`；Claude Code 写入对应 `.claude/skills/cortex-org-wiki/`。同内容可重复安装；已有内容是本仓任一正式发布版本的 skill 时自动更新为当前版本；其他内容（本地修改、较新版本或来源不明）报 `skill_conflict`，所选宿主都不写入，只有确认应替换后使用 `--replace-skill` / `-ReplaceSkill`。不为其他宿主猜目录或安装到所有全局目录。
 
 已有 CLI 可以直接运行 `cortex-org-wiki skill setup --agent codex --scope project --json`，可加 `--project '<path>'`，`--agent` 可重复；结果在 `data.skills`，每个宿主一项，确认替换用 `--replace`。已有 Node 的宿主也可以 `npx @hiq-ai/cortex-org-wiki-cli <命令>`（npm 自 0.1.1 起可用），默认仍用上面的原生安装入口。标准 skills 安装器也可从本公开仓库精准安装 `--skill cortex-org-wiki --agent codex|claude-code`；统一入口已包含 skill，无需重复安装。
 

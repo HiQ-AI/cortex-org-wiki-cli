@@ -48,10 +48,13 @@ async function main(): Promise<void> {
     .demandCommand(1).strict().help().alias("h", "help").version(VERSION)
     .fail((message, error) => { throw error ?? new CortexClientError("validation", message); }).parse();
 }
+/** Failure lines always carry a code; errors without a specific one get their kind's generic code. */
+const GENERIC_CODE = { config: "config_error", validation: "invalid_argument", transport: "transport_error", upstream: "upstream_error", unknown: "unexpected_error" } as const;
 main().catch(error => {
   const kind = error instanceof CortexClientError ? error.kind : "unknown";
+  const code = (error instanceof CortexClientError && error.code) || GENERIC_CODE[kind];
   const message = error instanceof Error ? error.message : String(error);
   const json = cli.parsed && cli.parsed.argv.json;
-  process.stderr.write(json ? JSON.stringify({ ok: false, kind, message, code: error instanceof CortexClientError ? error.code : undefined }) + "\n" : message + "\n");
+  process.stderr.write(json ? JSON.stringify({ ok: false, kind, code, message }) + "\n" : message + "\n");
   process.exitCode = exitCodeFor(error);
 });

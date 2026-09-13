@@ -101,11 +101,11 @@ test("native binary and unified installer in isolated projects", { skip: !binary
   const original = await readFile(join(repo, "skills/cortex-org-wiki/SKILL.md"), "utf8");
   const version = (await run(binary!, ["version"])).stdout.trim();
   const replaceFlag = windows ? "-ReplaceSkill" : "--replace-skill";
-  function install(mode: "both" | "cli" | "skill", agents: string, project: string, target: string, extra: string[] = []) {
+  function install(mode: "both" | "cli" | "skill", agents: string, project: string, target: string, extra: string[] = [], overrides: Record<string, string> = {}) {
     const args = windows
       ? ["-NoProfile", "-File", join(repo, "scripts/install.ps1"), "-Agent", agents, "-Project", project, "-InstallDir", target, "-BaseUrl", downloadBase, ...(mode === "both" ? [] : [mode === "cli" ? "-CliOnly" : "-SkillOnly"])]
       : [join(repo, "scripts/install.sh"), "--agent", agents, "--project", project, "--install-dir", target, "--base-url", downloadBase, ...(mode === "both" ? [] : [mode === "cli" ? "--cli-only" : "--skill-only"])];
-    return run(windows ? "pwsh" : "sh", [...args, ...extra]);
+    return run(windows ? "pwsh" : "sh", [...args, ...extra], overrides);
   }
   /** Success is exactly one JSON line on stdout, with progress kept on stderr. */
   function installed(result: { code: number; stdout: string; stderr: string }) {
@@ -168,6 +168,14 @@ test("native binary and unified installer in isolated projects", { skip: !binary
     const data = installed(await install("both", "codex,claude-code", project, target, [replaceFlag]));
     assert.deepEqual(data.skills.map(skill => [skill.agent, skill.status]), [["codex", "installed"], ["claude-code", "updated"]]);
     assert.equal(await readFile(path, "utf8"), original);
+  });
+  await t.test("an unsupported agent fails validation as JSON under a UTF-8 locale", async () => {
+    // macOS sh (bash 3.2) reads a multibyte character right after an unbraced variable as part of its name.
+    const target = join(root, "unsupported-bin");
+    const result = await install("both", "cortex", join(root, "unsupported-project"), target, [], { LC_ALL: "en_US.UTF-8" });
+    assert.deepEqual([failure(result).kind, failure(result).code], ["validation", "invalid_argument"]);
+    if (!windows) assert.equal(result.code, 3, result.stderr);
+    await assert.rejects(access(target));
   });
   await t.test("CLI-only and skill-only modes are independent and corrupt downloads fail closed", async () => {
     for (const mode of ["cli", "skill"] as const) {

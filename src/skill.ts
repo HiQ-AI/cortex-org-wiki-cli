@@ -32,7 +32,7 @@ export async function setupSkills(agents: SkillAgent[], scope: SkillScope, proje
   }
   const conflicts = targets.filter(target => target.status === "conflict").map(target => target.path);
   if (conflicts.length > 0) {
-    throw new CortexClientError("config", `已有非官方发布的 skill 内容，全部未写入：${conflicts.join("、")}；确认替换后使用 --replace 重新运行。`, "skill_conflict");
+    throw new CortexClientError("config", `已有与本版本不同且不在以往正式发布版本中的 skill 内容（本地修改、较新版本或来源不明），全部未写入：${conflicts.join("、")}；确认替换后使用 --replace 重新运行。`, "skill_conflict");
   }
   for (const { directory, path, status } of targets) {
     if (status === "unchanged") continue;

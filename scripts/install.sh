@@ -36,7 +36,7 @@ if [ "$mode" != cli ]; then
   [ -n "$agents" ] || fail validation invalid_argument '请明确指定 --agent codex|claude-code，多个宿主可重复或逗号分隔（Cortex 市场技能由 Host 安装）'
   IFS=,
   for agent in $agents; do
-    case "$agent" in codex|claude-code) ;; *) fail validation invalid_argument "不支持的 agent: $agent（可选 codex、claude-code）" ;; esac
+    case "$agent" in codex|claude-code) ;; *) fail validation invalid_argument "不支持的 agent: ${agent}（可选 codex、claude-code）" ;; esac
   done
   unset IFS
 fi

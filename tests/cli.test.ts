@@ -125,6 +125,7 @@ test("standalone CLI, host identity and clean npm installation", { timeout: 120_
     for (const args of [["search", ""], ["search", "topic"], ["search", "topic", "--org", "org-甲", "--limit", "1.5"], ["read", "../page", "--org", "org-甲"], ["publish", "anything"], ["skill", "setup", "--agent", "cortex"]]) {
       const result = await run([...args, "--json"]);
       assert.equal(result.code, 3, result.stderr);
+      assert.deepEqual([JSON.parse(result.stderr).kind, JSON.parse(result.stderr).code], ["validation", "invalid_argument"]);
     }
     assert.equal(fixture.requests.length, count);
   });
@@ -206,6 +207,11 @@ test("standalone CLI, host identity and clean npm installation", { timeout: 120_
     assert.equal(JSON.parse(conflict.stderr).code, "skill_conflict");
     assert.equal(conflict.stdout, "");
     assert.notEqual(await readFile(skillPath(project, ".agents"), "utf8"), original, "a conflict on one host writes no host");
+    // A file where the project directory should be is an unexpected filesystem error, still with a code.
+    const notDirectory = join(root, "not-a-directory"); await writeFile(notDirectory, "");
+    const unexpected = await run(["skill", "setup", "--agent", "codex", "--project", notDirectory, "--json"]);
+    assert.equal(unexpected.code, 1, unexpected.stderr);
+    assert.deepEqual([JSON.parse(unexpected.stderr).kind, JSON.parse(unexpected.stderr).code], ["unknown", "unexpected_error"]);
   });
   await t.test("clean npm package installs independently with guide and same embedded skill", { timeout: 60_000 }, async () => {
     const npm = process.env.npm_execpath; assert.ok(npm);
