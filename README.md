@@ -29,7 +29,8 @@ Windows PowerShell：
 ```sh
 cortex-org-wiki login --json
 cortex-org-wiki doctor --org '<organization-id>' --json
-cortex-org-wiki search '接口约定' --org '<organization-id>' --json
+cortex-org-wiki search '接口约定 版本' --org '<organization-id>' --json
+cortex-org-wiki browse --type project --tag '接口集成' --org '<organization-id>' --json
 cortex-org-wiki read '<nodeid>' --revision '<revision>' --org '<organization-id>' --json
 cortex-org-wiki links '<nodeid>' --revision '<revision>' --org '<organization-id>' --json
 cortex-org-wiki sources '<nodeid>' --revision '<revision>' --org '<organization-id>' --json
@@ -39,7 +40,7 @@ cortex-org-wiki sources '<nodeid>' --revision '<revision>' --org '<organization-
 
 独立登录存于 `~/.config/cortex-org-wiki/credentials.json`；绝对路径 `XDG_CONFIG_HOME` 可选择独立存储。Host 仅使用 `CORTEX_ORG_WIKI_TOKEN` 注入 Bearer 身份：变量存在时完全不读本机登录，空值、过期或权限拒绝都不回退。组织身份不接受 API key，也不读取其他 HiQ CLI 的凭据。`CORTEX_ORG_WIKI_BASE` 可覆盖默认 API `https://x.hiqlcd.com`。
 
-成功输出为 `{ "ok": true, "tool": "search", "data": ... }`。搜索返回真实页面 ID、revision、摘要与引用；使用返回的 revision 读取同一发布版本。出站关系属于该版本，入站关系是当前图谱。sources 的下载 URL 仍需认证，CLI 不自动下载或执行材料。
+成功输出为 `{ "ok": true, "tool": "search", "data": ... }`。搜索按空格分开多个关键词、全部命中，标题与别名命中优先；`browse` 不带关键词，按 `--type` / `--tag` 浏览，最近发布在前。两者都返回真实页面 ID、revision、摘要与引用；使用返回的 revision 读取同一发布版本。出站关系属于该版本，入站关系是当前图谱。sources 的下载 URL 仍需认证，CLI 不自动下载或执行材料。
 
 错误 JSON 写入 stderr。退出码：`0` 成功，`2` 身份/配置，`3` 输入错误，`4` 上游拒绝或响应错误，`5` 网络，`1` 意外错误。帮助、版本及 skill 安装均不访问账号或远程工具目录。
 

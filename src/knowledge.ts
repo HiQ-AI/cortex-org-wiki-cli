@@ -4,7 +4,8 @@ import { CortexClientError } from "./types.js";
 import { VERSION } from "./version.js";
 
 export interface KnowledgeOptions { org: string }
-export type KnowledgeCommand = "search" | "read" | "links" | "sources";
+export type KnowledgeCommand = "search" | "browse" | "read" | "links" | "sources";
+export const PAGE_TYPES = ["person", "organization", "event", "location", "concept", "artifact", "dataset", "project"] as const;
 type JsonObject = Record<string, unknown>;
 const object = (value: unknown): value is JsonObject => value !== null && typeof value === "object" && !Array.isArray(value);
 
@@ -55,15 +56,20 @@ export async function organizationIdentity(options: KnowledgeOptions): Promise<J
 export async function readKnowledge(
   command: KnowledgeCommand,
   value: string,
-  options: KnowledgeOptions & { revision?: string; tag?: string; after?: string; limit?: number },
+  options: KnowledgeOptions & { revision?: string; tag?: string; type?: string; after?: string; limit?: number },
 ): Promise<JsonObject> {
   let url: URL;
-  if (command === "search") {
-    if (!value.trim()) throw new CortexClientError("validation", "搜索内容不能为空");
+  if (command === "search" || command === "browse") {
+    if (command === "search" && !value.trim()) throw new CortexClientError("validation", "搜索内容不能为空");
     if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit < 1 || options.limit > 100)) {
       throw new CortexClientError("validation", "--limit 必须是 1 到 100 的整数");
     }
-    url = endpoint(options, "/wiki/organization/pages", { q: value, tag: options.tag, after: options.after, limit: options.limit?.toString() });
+    // Search: every whitespace-separated keyword must match, title/alias hits first (server ranking).
+    // Browse: no keyword; the server lists the newest published pages first within the chosen type/topic.
+    url = endpoint(options, "/wiki/organization/pages", {
+      ...(command === "search" ? { q: value } : { order: "recent" }),
+      type: options.type, tag: options.tag, after: options.after, limit: options.limit?.toString(),
+    });
   } else {
     if (!value || value === "." || value === ".." || /[\/\\\0]/u.test(value)) {
       throw new CortexClientError("validation", "页面 ID 必须是单个稳定身份，不能是文件路径");
@@ -72,7 +78,7 @@ export async function readKnowledge(
     url = endpoint(options, `/wiki/organization/pages/${encodeURIComponent(value)}${suffix}`, { revision: options.revision });
   }
   const data = await getData(url);
-  const valid = command === "search" ? Array.isArray(data.pages) && typeof data.version === "number" && (data.nextCursor === null || typeof data.nextCursor === "string")
+  const valid = command === "search" || command === "browse" ? Array.isArray(data.pages) && typeof data.version === "number" && (data.nextCursor === null || typeof data.nextCursor === "string")
     : typeof data.revision === "string" && (command === "read" ? typeof data.markdown === "string"
       : command === "links" ? Array.isArray(data.incoming) && Array.isArray(data.outgoing) : Array.isArray(data.sources));
   if (!valid) throw new CortexClientError("upstream", `组织知识 ${command} 响应不完整`);
@@ -92,12 +98,12 @@ export async function readKnowledge(
 
 export function formatKnowledge(command: KnowledgeCommand, data: JsonObject): string {
   if (command === "read") return `revision: ${data.revision}\n\n${data.markdown}`;
-  if (command === "search") {
+  if (command === "search" || command === "browse") {
     const pages = data.pages as unknown[];
     const lines = [`知识版本: ${data.version}`];
     for (const page of pages) {
       if (!object(page)) throw new CortexClientError("upstream", "组织知识搜索返回了无效页面");
-      lines.push(`\n${page.title}  [${page.nodeid}]`, `revision: ${page.revision}`, String(page.summary ?? ""));
+      lines.push(`\n${page.title}  [${page.nodeid}]${typeof page.type === "string" ? `  ·  ${page.type}` : ""}`, `revision: ${page.revision}`, String(page.summary ?? ""));
     }
     if (!pages.length) lines.push("当前组织没有匹配的已发布知识。");
     if (data.nextCursor) lines.push(`\n下一页: --after ${data.nextCursor}`);
