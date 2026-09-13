@@ -26,6 +26,14 @@
 
 发布后分别验证正式 CDN 安装、目标宿主发现、原生版本/哈希、Host 身份优先级与真实组织查询。`verify-install` 用隔离项目且不登录。CI fixture、渠道可访问与真实知识验收分别记录。
 
+## v0.1.5 发布记录
+
+[PR #12](https://github.com/HiQ-AI/cortex-org-wiki-cli/pull/12) 修复升级：以往正式发布的 skill 按已知摘要自动更新为 `updated`，其他内容仍报 `skill_conflict`；安装脚本先装 CLI 再装 skill，stdout 只输出一行 JSON（`data.cli` 含 `previous_version`，`data.skills` 每个宿主一项），进度在 stderr，失败行带 `code`，`--agent` 可重复。[PR #13](https://github.com/HiQ-AI/cortex-org-wiki-cli/pull/13) 把版本升到 0.1.5，并在 Agent 指南中说明手动导入过的旧组织知识 skill 须由宿主删除。[正式发布](https://github.com/HiQ-AI/cortex-org-wiki-cli/releases/tag/v0.1.5)绑定 main 提交 `12c39ba922dbc3a24666906f5b5ab18fcd5ccb9b`。
+
+第一次 `v0.1.5` 打在 #12 合并提交上，package 检查发现 tag 与 `package.json` 版本不一致而失败，后续 job 均未执行，未产生任何发布物；该 tag 删除后在 #13 合并提交上重新打。
+
+[发布任务 34771114384](https://github.com/HiQ-AI/cortex-org-wiki-cli/actions/runs/34771114384)全部 job 成功（package、binaries、npm、github、mirror-cdn，以及四个 runner 的 verify-install）；npm 经 Trusted Publishing 发布并带 provenance，shasum `f4cb623af26e379837689d756b16f7c85a80d91c`，`latest` 指向 0.1.5；干净环境安装后 `--version` 输出 0.1.5，`npm audit signatures` 通过。CDN `agent-setup.md` 已含旧 skill 删除说明。临时 HOME 实测升级：先用 0.1.3 CLI 装入 skill，再运行 CDN 安装脚本，退出码 0、stdout 一行，`cli.previous_version` 为 0.1.3、skill `status` 为 `updated`；从 0.1.4 升级时嵌入正文未变，skill 为 `unchanged`。市场技能配对见 cortex-skills #194。
+
 ## v0.1.4 发布记录
 
 [PR #10](https://github.com/HiQ-AI/cortex-org-wiki-cli/pull/10) 修正 skill、Agent 指南与 README 中的最低版本说明：`browse` 与 `search --type` 需要 0.1.3 及以上，旧版本会以退出码 3 拒绝；skill 正文随二进制内嵌，因此发 0.1.4。无代码行为变化。[正式发布](https://github.com/HiQ-AI/cortex-org-wiki-cli/releases/tag/v0.1.4)绑定 main 提交 `35aac9b6e16492998fb0634bed5e357be14ed58c`。
