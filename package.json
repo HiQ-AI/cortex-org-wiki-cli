@@ -1,6 +1,6 @@
 {
   "name": "@hiq-ai/cortex-org-wiki-cli",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Read your Cortex organization's published Wiki with versioned source citations.",
   "type": "module",
   "bin": { "cortex-org-wiki": "./dist/cli.js" },
