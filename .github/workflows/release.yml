@@ -24,7 +24,9 @@ jobs:
   package:
     runs-on: ubuntu-latest
     steps:
+      # Every v* tag: the build embeds earlier official skill digests so installs upgrade them.
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
       - run: node -e 'if (process.env.GITHUB_REF_NAME !== "v" + JSON.parse(require("fs").readFileSync("package.json")).version) process.exit(1)'
@@ -46,6 +48,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
       - uses: oven-sh/setup-bun@v2
         with: { bun-version: latest }
       - uses: actions/setup-node@v4
@@ -125,6 +128,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
       - run: npm ci
@@ -133,7 +137,8 @@ jobs:
       - name: install.sh (CDN)
         if: runner.os != 'Windows'
         run: |
-          curl -fsSL https://download.hiq.earth/cli/cortex-org-wiki/install.sh | sh -s -- --agent codex --project "$RUNNER_TEMP/wiki-project" --install-dir "$RUNNER_TEMP/wiki-bin"
+          curl -fsSL https://download.hiq.earth/cli/cortex-org-wiki/install.sh | sh -s -- --agent codex --project "$RUNNER_TEMP/wiki-project" --install-dir "$RUNNER_TEMP/wiki-bin" > "$RUNNER_TEMP/install.json"
+          node -e 'const [line, ...rest] = require("fs").readFileSync(process.argv[1], "utf8").split("\n").filter(Boolean); const data = JSON.parse(line).data; if (rest.length || data.cli.version !== process.env.GITHUB_REF_NAME.slice(1) || data.skills[0].status !== "installed") process.exit(1)' "$RUNNER_TEMP/install.json"
           "$RUNNER_TEMP/wiki-bin/cortex-org-wiki" version
           test -s "$RUNNER_TEMP/wiki-project/.agents/skills/cortex-org-wiki/SKILL.md"
       - name: install.ps1 (CDN)

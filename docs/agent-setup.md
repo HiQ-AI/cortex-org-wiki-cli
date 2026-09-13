@@ -4,7 +4,7 @@
 
 ## 安装到当前宿主
 
-确认实际执行环境、操作系统和宿主。已有 CLI 先执行 `cortex-org-wiki --version` 和 `--help`；低于 0.1.3 时先按下面的入口更新，再确认 `--version`。
+确认实际执行环境、操作系统和宿主。已有 CLI 先执行 `cortex-org-wiki --version` 和 `--help`；低于 0.1.3 时先按下面的入口更新（见[升级](#升级)），再确认 `--version`。
 
 macOS / Linux：
 
@@ -18,7 +18,7 @@ Windows PowerShell：
 & ([scriptblock]::Create((irm https://download.hiq.earth/cli/cortex-org-wiki/install.ps1))) -Agent codex
 ```
 
-选择当前宿主：Codex 用 `codex`，Claude Code 用 `claude-code`。默认一次安装 CLI 和 skill，不需要 Node/npm。CLI 默认位置为 `~/.local/bin/cortex-org-wiki` 或 `%LOCALAPPDATA%\Programs\cortex-org-wiki\cortex-org-wiki.exe`，当前终端未发现命令时直接使用完整路径。
+选择当前宿主：Codex 用 `codex`，Claude Code 用 `claude-code`。同时装到多个宿主时重复 `--agent` 或用逗号分隔（`--agent codex,claude-code`；PowerShell 为 `-Agent codex,claude-code`），不自动探测宿主。默认一次安装 CLI 和 skill，不需要 Node/npm。CLI 默认位置为 `~/.local/bin/cortex-org-wiki` 或 `%LOCALAPPDATA%\Programs\cortex-org-wiki\cortex-org-wiki.exe`，当前终端未发现命令时直接使用完整路径。
 
 | 需求 | sh 参数 | PowerShell 参数 |
 |---|---|---|
@@ -28,13 +28,27 @@ Windows PowerShell：
 | 指定项目 | `--project '<path>'` | `-Project '<path>'` |
 | 指定 CLI 目录 | `--install-dir '<path>'` | `-InstallDir '<path>'` |
 
-默认项目范围。Codex 写入项目或用户的 `.agents/skills/cortex-org-wiki/`；Claude Code 写入对应 `.claude/skills/cortex-org-wiki/`。同内容可重复安装，不同内容报冲突；只有确认应替换后使用 `--replace-skill` / `-ReplaceSkill`。不为其他宿主猜目录或安装到所有全局目录。
+默认项目范围。Codex 写入项目或用户的 `.agents/skills/cortex-org-wiki/`；Claude Code 写入对应 `.claude/skills/cortex-org-wiki/`。同内容可重复安装；已有内容是本仓任一正式发布版本的 skill 时自动更新为当前版本；其他内容（本地修改或来源不明）报 `skill_conflict`，所选宿主都不写入，只有确认应替换后使用 `--replace-skill` / `-ReplaceSkill`。不为其他宿主猜目录或安装到所有全局目录。
 
-已有 CLI 可以直接运行 `cortex-org-wiki skill setup --agent codex --scope project --json`，可加 `--project '<path>'`。已有 Node 的宿主也可以 `npx @hiq-ai/cortex-org-wiki-cli <命令>`（npm 自 0.1.1 起可用），默认仍用上面的原生安装入口。标准 skills 安装器也可从本公开仓库精准安装 `--skill cortex-org-wiki --agent codex|claude-code`；统一入口已包含 skill，无需重复安装。
+已有 CLI 可以直接运行 `cortex-org-wiki skill setup --agent codex --scope project --json`，可加 `--project '<path>'`，`--agent` 可重复；结果在 `data.skills`，每个宿主一项，确认替换用 `--replace`。已有 Node 的宿主也可以 `npx @hiq-ai/cortex-org-wiki-cli <命令>`（npm 自 0.1.1 起可用），默认仍用上面的原生安装入口。标准 skills 安装器也可从本公开仓库精准安装 `--skill cortex-org-wiki --agent codex|claude-code`；统一入口已包含 skill，无需重复安装。
 
 Cortex Cowork 的市场安装由现有 Host 管理 skill 和对应 CLI，采用市场产物的 `metadata.cli`。不要用 `--agent cortex`（它是其他产品的标识），不要写 Cortex 私有 profile 或用 `save_skill` 代替安装。是否已供给可用 CLI，以当前会话实际命令结果为准。
 
-安装后检查 `skill setup` 返回路径，并在宿主原生技能列表确认 `cortex-org-wiki` 已发现；必要时按宿主要求刷新会话。文件落盘和实时加载分别报告。源规范见 [Codex](https://learn.chatgpt.com/docs/build-skills)、[Claude Code](https://code.claude.com/docs/en/skills)。
+## 升级
+
+`--version` 低于需要的版本时，重新运行同一安装入口，带上原来的 `--agent`、`--scope`、`--project`。安装脚本先把新 CLI 放到位，再用新 CLI 安装 skill：之前正式发布的 skill 自动更新为 `updated`；遇到 `skill_conflict` 时 CLI 已经升级，只有 skill 未写入，确认替换后加 `--replace-skill` / `-ReplaceSkill` 重跑。
+
+## 安装后检查
+
+成功时 stdout 只有一行 JSON，进度在 stderr：
+
+```json
+{"ok":true,"tool":"install","data":{"cli":{"path":"/home/me/.local/bin/cortex-org-wiki","version":"0.1.5","previous_version":"0.1.4"},"skills":[{"agent":"codex","scope":"project","path":"/work/app/.agents/skills/cortex-org-wiki/SKILL.md","version":"0.1.5","sha256":"…","status":"updated"}]}}
+```
+
+`cli.path` 是实际安装位置；`previous_version` 为之前该位置 CLI 的 `version` 输出，没有或无法运行时为 `null`；`--skill-only` 时 `cli` 为 `null`。`skills` 每个宿主一项，`status` 为 `installed`、`updated` 或 `unchanged`；`--cli-only` 时为空数组。失败时退出码非零，stderr 中有一行 `{"ok":false,"kind":…,"code":…,"message":…}`，按 `code` 报告，不要把部分输出当作成功。
+
+据此报告 CLI 路径与版本，并在宿主原生技能列表确认 `cortex-org-wiki` 已发现；必要时按宿主要求刷新会话。文件落盘和实时加载分别报告。源规范见 [Codex](https://learn.chatgpt.com/docs/build-skills)、[Claude Code](https://code.claude.com/docs/en/skills)。
 
 ## 登录并核实组织
 

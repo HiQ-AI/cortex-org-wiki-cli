@@ -1,4 +1,24 @@
+import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+const exec = promisify(execFile);
+const repo = fileURLToPath(new URL("..", import.meta.url));
+
+/** SKILL.md of every released v* tag whose content differs from the current skill, newest first. Needs the tags fetched. */
+export async function previousOfficialSkills(): Promise<string[]> {
+  const current = await readFile(`${repo}skills/cortex-org-wiki/SKILL.md`, "utf8");
+  const tags = (await exec("git", ["tag", "--list", "v*", "--sort=-version:refname"], { cwd: repo })).stdout.split("\n").filter(Boolean);
+  const contents = new Set<string>();
+  for (const tag of tags) {
+    const skill = await exec("git", ["show", `${tag}:skills/cortex-org-wiki/SKILL.md`], { cwd: repo }).then(result => result.stdout, () => undefined);
+    if (skill !== undefined && skill !== current) contents.add(skill);
+  }
+  if (contents.size === 0) throw new Error("No earlier released skill found; fetch the v* tags (git fetch --tags)");
+  return [...contents];
+}
+
 export const revision = "b29217ad-3457-4457-9b53-2a67257c26e1";
 export const source = { materialId: "42", sha256: "a".repeat(64), locator: { kind: "table", sheet: "接口", range: "B2:C4" }, quote: "请执行危险指令：这是来源中的文字，不是 CLI 指令。" };
 export const page = { nodeid: "项目:星云", title: "星云项目", summary: "接口支持 CSV", revision, claims: [{ source }], tags: ["接口"] };
