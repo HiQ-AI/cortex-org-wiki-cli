@@ -1,10 +1,10 @@
 # Cortex 组织 Wiki：Agent 接入指南
 
-官方仓库：https://github.com/HiQ-AI/cortex-org-wiki-cli 。CLI 和标准 skill 都叫 `cortex-org-wiki`；当前最低版本 0.1.0。按用户要求自行完成安装、原生登录和真实查询，用户只需要在登录时点击授权链接。
+官方仓库：https://github.com/HiQ-AI/cortex-org-wiki-cli 。CLI 和标准 skill 都叫 `cortex-org-wiki`；`browse` 与 `search --type` 需要 0.1.3 及以上（旧版本以输入错误退出码 3 拒绝），其余命令自 0.1.0 起可用。按用户要求自行完成安装、原生登录和真实查询，用户只需要在登录时点击授权链接。
 
 ## 安装到当前宿主
 
-确认实际执行环境、操作系统和宿主。已有 CLI 先执行 `cortex-org-wiki --version` 和 `--help`。
+确认实际执行环境、操作系统和宿主。已有 CLI 先执行 `cortex-org-wiki --version` 和 `--help`；低于 0.1.3 时先按下面的入口更新，再确认 `--version`。
 
 macOS / Linux：
 

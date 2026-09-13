@@ -9,8 +9,11 @@ Use `cortex-org-wiki` through the host's terminal. This skill and CLI are releas
 from [HiQ-AI/cortex-org-wiki-cli](https://github.com/HiQ-AI/cortex-org-wiki-cli).
 If the command is missing, follow the official
 [Agent setup guide](https://download.hiq.earth/cli/cortex-org-wiki/agent-setup.md)
-to install it. Version 0.1.0 or later supports these commands; check `--version`
-and use the relevant `--help` before guessing a flag.
+to install it. Check `cortex-org-wiki --version` first: `browse` and
+`search --type` need 0.1.3 or later, and older versions reject them as invalid
+input (exit 3); the other commands here work from 0.1.0. If the version is older,
+update the CLI through the same guide. Use the relevant `--help` before guessing
+a flag.
 
 ## Identity and organization
 

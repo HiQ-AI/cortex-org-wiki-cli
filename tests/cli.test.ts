@@ -128,6 +128,15 @@ test("standalone CLI, host identity and clean npm installation", { timeout: 120_
     }
     assert.equal(fixture.requests.length, count);
   });
+  await t.test("docs state the real minimum version for browse and search --type, shipped in a newer embedded skill", async () => {
+    for (const doc of ["skills/cortex-org-wiki/SKILL.md", "docs/agent-setup.md", "README.md"]) {
+      const text = (await readFile(join(repo, doc), "utf8")).replace(/\s+/gu, " ");
+      assert.match(text, /`browse` (?:and|与) `search --type`[^;；。]*0\.1\.3/u, doc);
+      assert.doesNotMatch(text, /最低版本 0\.1\.0|0\.1\.0 or later supports these commands/u, doc);
+    }
+    const version = (await run(["--version"])).stdout.trim();
+    assert.ok(version.localeCompare("0.1.3", "en", { numeric: true }) > 0, version);
+  });
   await t.test("HTTP errors, wrong organization, revision mismatch and empty results remain honest", async () => {
     for (const [status, code] of [[401, 2], [403, 2], [400, 3], [422, 3], [404, 4], [503, 4]]) {
       assert.equal((await run(["search", `status-${status}`, "--org", "org-甲", "--json"])).code, code);
