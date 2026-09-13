@@ -26,6 +26,12 @@
 
 发布后分别验证正式 CDN 安装、目标宿主发现、原生版本/哈希、Host 身份优先级与真实组织查询。`verify-install` 用隔离项目且不登录。CI fixture、渠道可访问与真实知识验收分别记录。
 
+## v0.1.3 发布记录
+
+[PR #8](https://github.com/HiQ-AI/cortex-org-wiki-cli/pull/8) 新增 `browse`（不带关键词，`--type` / `--tag` 浏览，服务端 `order=recent`）与 `search --type`，并在帮助、README、Agent 指南与 skill 中说明多关键词全部命中、标题别名优先；[正式发布](https://github.com/HiQ-AI/cortex-org-wiki-cli/releases/tag/v0.1.3)绑定 main 提交 `7b38dbefaeba1eb3de099908b2cfed3ffe417bec`。服务端能力随 Cortex `nomad-v0.0.333`（#1326）与 `deck-v0.7.259`（#1327）先行上线。
+
+[发布任务 34739552431](https://github.com/HiQ-AI/cortex-org-wiki-cli/actions/runs/34739552431)全部 job 成功：package、五平台 native、npm（Trusted Publishing，带 provenance，`latest` 指向 0.1.3，shasum `5e5e6f2baa31b01638dc314d52b1461aa306e8a3`）、GitHub Release、CDN 同步，以及四个 runner 从稳定 CDN 安装后实际运行。干净环境 `npm install` 后 `--version` 输出 0.1.3，`browse --help` 列出 `--type` 八种页面类型与 `--tag`，`npm audit signatures` 通过；CDN `agent-setup.md` 已含 `cortex-org-wiki browse`。未用 CLI 对生产组织实际执行 `browse`；同一查询语义已由 Desktop 经 Deck 调用生产接口验证（类型筛选、最近发布排序、多关键词、按 ID 读取）。
+
 ## v0.1.2 发布记录
 
 [PR #5](https://github.com/HiQ-AI/cortex-org-wiki-cli/pull/5) 更新 README 与 Agent 指南的 npm 说明，[PR #6](https://github.com/HiQ-AI/cortex-org-wiki-cli/pull/6) 只 bump 版本，无代码改动；[正式发布](https://github.com/HiQ-AI/cortex-org-wiki-cli/releases/tag/v0.1.2)绑定 main 提交 `22e20bb0f36193f325cfc307bb654e2f3bf4c65e`。目的是验证刚配置的 npm Trusted Publisher，并把新指南推上 CDN。
