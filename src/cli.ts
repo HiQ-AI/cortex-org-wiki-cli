@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import yargs from "yargs";
-import { formatKnowledge, organizationIdentity, readKnowledge, type KnowledgeCommand } from "./knowledge.js";
+import { formatKnowledge, organizationIdentity, PAGE_TYPES, readKnowledge, type KnowledgeCommand } from "./knowledge.js";
 import { runLogin, runLogout } from "./login.js";
 import { setupSkill, type SkillAgent, type SkillScope } from "./skill.js";
 import { CortexClientError, exitCodeFor } from "./types.js";
@@ -13,17 +13,19 @@ function emit(tool: string, data: Record<string, unknown>, human: string, json: 
 }
 async function main(): Promise<void> {
   for (const [command, description] of [
-    ["search", "检索已发布 Wiki 页面"], ["read", "读取页面正文与引用"],
-    ["links", "读取页面关系"], ["sources", "读取材料来源与授权下载入口"],
+    ["search", "按关键词检索已发布 Wiki 页面（空格分隔多个关键词，全部命中）"], ["browse", "不带关键词，按类型或主题浏览已发布页面，最近发布在前"],
+    ["read", "读取页面正文与引用"], ["links", "读取页面关系"], ["sources", "读取材料来源与授权下载入口"],
   ] as [KnowledgeCommand, string][]) {
-    cli.command(`${command} <value>`, description, sub => {
-      const base = sub.positional("value", { type: "string", describe: command === "search" ? "查询主题" : "稳定页面 ID" })
+    const listing = command === "search" || command === "browse";
+    cli.command(command === "browse" ? "browse" : `${command} <value>`, description, sub => {
+      const base = (command === "browse" ? sub : sub.positional("value", { type: "string", describe: command === "search" ? "查询关键词" : "稳定页面 ID" }))
         .option("org", { type: "string", demandOption: true, describe: "用户或宿主选择的组织 ID" });
-      return command === "search" ? base.option("tag", { type: "string" }).option("after", { type: "string" }).option("limit", { type: "number" })
+      return listing ? base.option("type", { choices: PAGE_TYPES, describe: "页面类型" }).option("tag", { type: "string", describe: "主题标签" })
+        .option("after", { type: "string" }).option("limit", { type: "number" })
         : base.option("revision", { type: "string", describe: "指定发布版本；省略时取当前发布版" });
     }, async args => {
-      const data = await readKnowledge(command, String(args.value), {
-        org: args.org, revision: args.revision as string | undefined,
+      const data = await readKnowledge(command, command === "browse" ? "" : String(args.value), {
+        org: args.org, revision: args.revision as string | undefined, type: args.type as string | undefined,
         tag: args.tag as string | undefined, after: args.after as string | undefined, limit: args.limit as number | undefined,
       });
       emit(command, data, formatKnowledge(command, data), args.json);

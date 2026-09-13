@@ -43,8 +43,16 @@ trying other identities. Never read or copy credential files or request API keys
    cortex-org-wiki search '<query>' --org '<organization-id>' --limit 10 --json
    ```
 
-   Read `data.pages`, including actual `nodeid` and `revision`. Use `--tag` when
-   useful; use the returned `nextCursor` with `--after` for additional results.
+   Separate keywords with spaces: every keyword must match, and pages whose
+   title or alias matches rank first. Read `data.pages`, including actual
+   `nodeid` and `revision`. Use `--type` / `--tag` to narrow; use the returned
+   `nextCursor` with `--after` for additional results. When the user asks what
+   exists about a topic or kind of thing rather than a specific question,
+   browse instead of guessing keywords (most recently published first):
+
+   ```sh
+   cortex-org-wiki browse --type project --tag '<topic>' --org '<organization-id>' --limit 10 --json
+   ```
    An empty result means no matching published knowledge in this organization;
    it does not prove the whole Wiki is empty.
 

@@ -42,6 +42,13 @@ test("standalone CLI, host identity and clean npm installation", { timeout: 120_
     const data = await success(["search", "接口 % & 项目", "--tag", "标签 %", "--after", "上一页", "--limit", "2"]);
     assert.deepEqual(data.pages, [page]);
     assert.deepEqual(fixture.requests.at(-1)!.query, { organization_id: "org-甲", q: "接口 % & 项目", tag: "标签 %", after: "上一页", limit: "2" });
+    await success(["search", "接口", "--type", "concept"]);
+    assert.equal(fixture.requests.at(-1)!.query.type, "concept");
+    const browsed = await success(["browse", "--type", "project", "--tag", "接口", "--limit", "5"]);
+    assert.deepEqual(browsed.pages, [page]);
+    assert.deepEqual(fixture.requests.at(-1)!.query, { organization_id: "org-甲", order: "recent", type: "project", tag: "接口", limit: "5" });
+    const invalidType = await run(["browse", "--type", "novel", "--org", "org-甲", "--json"]);
+    assert.equal(invalidType.code, 3);
     for (const command of ["read", "links", "sources"]) {
       const found = await success([command, page.nodeid, "--revision", revision]);
       assert.equal(found.revision, revision);
