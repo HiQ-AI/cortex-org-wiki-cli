@@ -43,7 +43,7 @@ fi
 case "$scope" in project|user) ;; *) fail validation invalid_argument 'scope 必须是 project 或 user' ;; esac
 [ "$scope" != user ] || [ -z "$project" ] || fail validation invalid_argument '--project 仅用于项目范围'
 if [ "$mode" != skill ] && [ -z "$install_dir" ]; then
-  [ -n "${HOME:-}" ] || fail config invalid_argument '缺少 HOME；请指定 --install-dir'
+  [ -n "${HOME:-}" ] || fail config config_error '缺少 HOME；请指定 --install-dir'
   install_dir="$HOME/.local/bin"
 fi
 case "$(uname -s)" in Darwin) os=darwin ;; Linux) os=linux ;; *) fail config unsupported_platform '此脚本支持 macOS/Linux；Windows 请用 install.ps1' ;; esac

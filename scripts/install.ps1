@@ -1,6 +1,6 @@
 param(
   [string[]]$Agent = @(),
-  [ValidateSet('project', 'user')][string]$Scope = 'project',
+  [string]$Scope = 'project',
   [string]$Project,
   [switch]$CliOnly,
   [switch]$SkillOnly,
@@ -28,6 +28,7 @@ try {
     if ($agents.Count -eq 0) { Fail validation invalid_argument '请指定 -Agent codex|claude-code，多个宿主用逗号分隔（Cortex 市场技能由 Host 安装）' }
     foreach ($name in $agents) { if ($name -notin 'codex', 'claude-code') { Fail validation invalid_argument "不支持的 agent: $name（可选 codex、claude-code）" } }
   }
+  if ($Scope -notin 'project', 'user') { Fail validation invalid_argument 'Scope 必须是 project 或 user' }
   if ($Scope -eq 'user' -and $Project) { Fail validation invalid_argument '-Project 仅用于项目范围' }
   if (-not [Environment]::Is64BitOperatingSystem) { Fail config unsupported_platform '需要 64 位 Windows' }
   $archive = 'cortex-org-wiki-windows-x64.zip'
