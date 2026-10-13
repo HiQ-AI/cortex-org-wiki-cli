@@ -20,9 +20,17 @@ permissions:
   contents: write   # create the GitHub Release
   id-token: write   # npm Trusted Publishing (OIDC) + provenance
 
+# Transfer drafts are never published or overwritten. Keep them for failed-job
+# reruns; see .github/RELEASE-HANDOFF.md for the reviewed manual cleanup policy.
+# Producer attempt and manifest hash travel through job outputs, so a consumer-only
+# rerun still reads the original producer rather than a candidate from a newer run.
 jobs:
   package:
     runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.handoff.outputs.release_id }}
+      attempt: ${{ steps.handoff.outputs.attempt }}
+      manifest_sha256: ${{ steps.handoff.outputs.manifest_sha256 }}
     steps:
       # Every v* tag: the build embeds earlier official skill digests so installs upgrade them.
       - uses: actions/checkout@v4
@@ -35,17 +43,21 @@ jobs:
         env:
           XDG_CONFIG_HOME: ${{ runner.temp }}/cortex-org-wiki-test-config
       - run: npm pack --ignore-scripts
-      - uses: actions/upload-artifact@v4
-        with:
-          name: npm-package
-          path: '*.tgz'
-          retention-days: 1
+      - name: Stage npm-package in a private draft Release
+        id: handoff
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/release-handoff.mjs upload npm-package .
 
   # Runs on macOS because only a Mac can codesign the Darwin binaries; Bun
   # cross-compiles the Linux and Windows targets from here just as well.
   binaries:
     needs: package
     runs-on: macos-latest
+    outputs:
+      release_id: ${{ steps.handoff.outputs.release_id }}
+      attempt: ${{ steps.handoff.outputs.attempt }}
+      manifest_sha256: ${{ steps.handoff.outputs.manifest_sha256 }}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -59,11 +71,11 @@ jobs:
       - run: ./scripts/build-binaries.sh
       - name: Verify the compiled macOS release binary
         run: CORTEX_ORG_WIKI_TEST_BINARY="$PWD/dist-bin/cortex-org-wiki-darwin-$(node -p 'process.arch')" npm run test:bin
-      - uses: actions/upload-artifact@v4
-        with:
-          name: binaries
-          path: dist-bin/*
-          retention-days: 1
+      - name: Stage binaries in a private draft Release
+        id: handoff
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/release-handoff.mjs upload binaries dist-bin
 
   npm:
     needs: package
@@ -76,8 +88,13 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       # Trusted publishing needs npm ≥ 11.5.1; Node 22 still bundles npm 10.x.
       - run: npm install -g npm@latest
-      - uses: actions/download-artifact@v4
-        with: { name: npm-package, path: npm-package }
+      - name: Verify and retrieve npm-package from the producer draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRANSFER_ID: ${{ needs.package.outputs.release_id }}
+          TRANSFER_ATTEMPT: ${{ needs.package.outputs.attempt }}
+          TRANSFER_MANIFEST_SHA256: ${{ needs.package.outputs.manifest_sha256 }}
+        run: node .github/scripts/release-handoff.mjs download npm-package npm-package
       - name: Publish to npm (Trusted Publishing — no token)
         run: npm publish ./npm-package/*.tgz --access public --provenance --ignore-scripts
 
@@ -86,18 +103,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with: { name: npm-package, path: npm-package }
-      - uses: actions/download-artifact@v4
-        with: { name: binaries, path: dist-bin }
-      - name: Create / update GitHub Release
+      - name: Verify and retrieve npm-package from the producer draft
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          assets=(dist-bin/* npm-package/*.tgz)
-          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
-            --title "$GITHUB_REF_NAME" --generate-notes --verify-tag \
-          || gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
+          TRANSFER_ID: ${{ needs.package.outputs.release_id }}
+          TRANSFER_ATTEMPT: ${{ needs.package.outputs.attempt }}
+          TRANSFER_MANIFEST_SHA256: ${{ needs.package.outputs.manifest_sha256 }}
+        run: node .github/scripts/release-handoff.mjs download npm-package npm-package
+      - name: Verify and retrieve binaries from the producer draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRANSFER_ID: ${{ needs.binaries.outputs.release_id }}
+          TRANSFER_ATTEMPT: ${{ needs.binaries.outputs.attempt }}
+          TRANSFER_MANIFEST_SHA256: ${{ needs.binaries.outputs.manifest_sha256 }}
+        run: node .github/scripts/release-handoff.mjs download binaries dist-bin
+      - name: Create or verify immutable GitHub Release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/release-publish.mjs dist-bin/* npm-package/*.tgz
 
   # 国内直连 GitHub 不通,CDN 才是用户实际走的下载源 —— 跟着发布一起推,
   # 不能等人想起来手动跑,否则 install.sh 会一直装到旧版本。
